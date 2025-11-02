@@ -115,7 +115,7 @@ std::ostream& operator<<(std::ostream& os, const ConstructionTask& t){
     return os;
 }
 
-// ---------------------------------- Country ----------------------------------
+// ---------------------------------- Tara ----------------------------------
 class Country {
     std::string name;
     std::string ideology;
