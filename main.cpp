@@ -4,8 +4,11 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <sstream>
 
-// ----------------------------- ResourceStockpile -----------------------------
+// ============================================================================
+//                               ResourceStockpile
+// ============================================================================
 class ResourceStockpile {
     int fuel;
     int manpower;
@@ -17,19 +20,6 @@ public:
     ResourceStockpile(int fuel, int manpower)
         : fuel(fuel), manpower(manpower) {}
 
-    ResourceStockpile(const ResourceStockpile& other)
-        : fuel(other.fuel), manpower(other.manpower) {}
-
-    ResourceStockpile& operator=(const ResourceStockpile& other) {
-        if (this != &other) {
-            fuel = other.fuel;
-            manpower = other.manpower;
-        }
-        return *this;
-    }
-
-    ~ResourceStockpile() {}
-
     int getFuel() const { return fuel; }
     int getManpower() const { return manpower; }
 
@@ -37,14 +27,55 @@ public:
         fuel     = clampNonNeg(fuel     + dFuel);
         manpower = clampNonNeg(manpower + dManpower);
     }
+
+    std::string toString() const {
+        std::ostringstream ss;
+        ss << "Fuel=" << fuel << ", Manpower=" << manpower;
+        return ss.str();
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const ResourceStockpile& r) {
-    os << "Fuel=" << r.getFuel() << ", Manpower=" << r.getManpower();
-    return os;
+    return os << r.toString();
 }
 
-// --------------------------------- Province ---------------------------------
+// ============================================================================
+//                               EquipmentStockpile
+// ============================================================================
+class EquipmentStockpile {
+    long long guns = 0;
+    long long artillery = 0;
+    long long antiAir = 0;
+    long long cas = 0;
+
+public:
+    void addGuns(long long n)      { if (n>0) guns      += n; }
+    void addArtillery(long long n) { if (n>0) artillery += n; }
+    void addAntiAir(long long n)   { if (n>0) antiAir   += n; }
+    void addCAS(long long n)       { if (n>0) cas       += n; }
+
+    long long getGuns() const      { return guns; }
+    long long getArtillery() const { return artillery; }
+    long long getAntiAir() const   { return antiAir; }
+    long long getCAS() const       { return cas; }
+
+    std::string toString() const {
+        std::ostringstream ss;
+        ss << "Guns=" << guns
+           << ", Artillery=" << artillery
+           << ", AA=" << antiAir
+           << ", CAS=" << cas;
+        return ss.str();
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, const EquipmentStockpile& e) {
+    return os << e.toString();
+}
+
+// ============================================================================
+//                                   Province
+// ============================================================================
 class Province {
     std::string name;
     int population;
@@ -52,21 +83,16 @@ class Province {
     int milFactories;
     int infrastructure;
     int steelReserve;
-    int tungstenReserve;
-    int chromiumReserve;
-    int aluminiumReserve;
     int oilReserve;
 
 public:
     Province() = default;
     Province(std::string name, int population, int civ, int mil, int infra,
-             int steelReserve,int tungstenReserve, int chromiumReserve, int aluminiumReserve, int oilReserve)
+             int steelReserve, int oilReserve)
         : name(std::move(name)), population(population),
           civFactories(civ), milFactories(mil),
           infrastructure(infra),
-          steelReserve(steelReserve), tungstenReserve(tungstenReserve),
-          chromiumReserve(chromiumReserve), aluminiumReserve(aluminiumReserve),
-          oilReserve(oilReserve) {}
+          steelReserve(steelReserve), oilReserve(oilReserve) {}
 
     const std::string& getName() const { return name; }
     int getPopulation()  const { return population; }
@@ -74,31 +100,32 @@ public:
     int getMil()         const { return milFactories; }
     int getInfra()       const { return infrastructure; }
     int getSteelReserve()const { return steelReserve; }
-    int getTungstenReserve()const { return tungstenReserve; }
-    int getChromiumReserve()const { return chromiumReserve; }
-    int getAluminiumReserve()const { return aluminiumReserve; }
     int getOilReserve()  const { return oilReserve; }
 
     void addCiv(int x){ civFactories = std::max(0, civFactories + x); }
     void addMil(int x){ milFactories = std::max(0, milFactories + x); }
     void addInfra(int x){ infrastructure = std::min(10, std::max(0, infrastructure + x)); }
+
+    std::string toString() const {
+        std::ostringstream ss;
+        ss << "Province(" << name
+           << ") pop=" << population
+           << ", INFRA=" << infrastructure
+           << ", CIV=" << civFactories
+           << ", MIL=" << milFactories
+           << ", STEEL=" << steelReserve
+           << ", OIL=" << oilReserve;
+        return ss.str();
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const Province& p) {
-    os << "Province(" << p.getName()
-       << ") pop=" << p.getPopulation()
-       << ", INFRA=" << p.getInfra()
-       << ", CIV=" << p.getCiv()
-       << ", MIL=" << p.getMil()
-       << ", STEEL=" << p.getSteelReserve()
-       << ", TUNGSTEN=" << p.getTungstenReserve()
-       << ", CHROMIUM=" << p.getChromiumReserve()
-       << ", ALUMINIUM=" << p.getAluminiumReserve()
-       << ", OIL=" << p.getOilReserve();
-    return os;
+    return os << p.toString();
 }
 
-// ------------------------------- Construction --------------------------------
+// ============================================================================
+//                                   Construction
+// ============================================================================
 enum class BuildType { Infra, Civ, Mil, Refinery };
 
 class ConstructionTask {
@@ -106,6 +133,7 @@ class ConstructionTask {
     int provinceIndex;
     double remainingBP;
     double baseCostBP;
+
 public:
     ConstructionTask(BuildType type, int province_index, double remaining_bp, double base_cost_bp)
         : type(type), provinceIndex(province_index),
@@ -117,143 +145,187 @@ public:
     double getBaseCostBP() const { return baseCostBP; }
 
     void setRemainingBP(double bp) { remainingBP = bp; }
+
+    std::string toString() const {
+        const char* tn = type==BuildType::Infra?"INFRA":
+                         type==BuildType::Civ?"CIV":
+                         type==BuildType::Mil?"MIL":"REFINERY";
+        std::ostringstream ss;
+        ss << tn << "(prov=" << provinceIndex
+           << ", left=" << std::fixed << std::setprecision(1)
+           << remainingBP << "/" << baseCostBP << ")";
+        return ss.str();
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const ConstructionTask& t){
-    const char* tn = t.getType()==BuildType::Infra?"INFRA":
-                     t.getType()==BuildType::Civ?"CIV":
-                     t.getType()==BuildType::Mil?"MIL":"REFINERY";
-    os << tn << "(prov=" << t.getProvinceIndex()
-       << ", left=" << std::fixed << std::setprecision(1)
-       << t.getRemainingBP() << "/" << t.getBaseCostBP() << ")";
-    return os;
+    return os << t.toString();
 }
 
-// ---------------------------------- Country ----------------------------------
+// ============================================================================
+//                            Military Production
+// ============================================================================
+enum class EquipmentType { Gun, Artillery, AntiAir, CAS };
+
+class ProductionLine {
+    EquipmentType type;
+    int factoriesAssigned;
+    double unitCost;
+
+    // costuri implicite
+    static constexpr double DEFAULT_COST_GUN       = 10.0;
+    static constexpr double DEFAULT_COST_ARTILLERY = 50.0;
+    static constexpr double DEFAULT_COST_ANTIAIR   = 40.0;
+    static constexpr double DEFAULT_COST_CAS       = 200.0;
+
+    static double defaultCost(EquipmentType t) {
+        switch (t) {
+            case EquipmentType::Gun:       return DEFAULT_COST_GUN;
+            case EquipmentType::Artillery: return DEFAULT_COST_ARTILLERY;
+            case EquipmentType::AntiAir:   return DEFAULT_COST_ANTIAIR;
+            case EquipmentType::CAS:       return DEFAULT_COST_CAS;
+        }
+        return DEFAULT_COST_GUN;
+    }
+
+public:
+    ProductionLine(EquipmentType type, int factories, double cost)
+        : type(type),
+          factoriesAssigned(std::max(0, factories)),
+          unitCost(cost > 0 ? cost : defaultCost(type)) {}
+
+    EquipmentType getType() const { return type; }
+    int getFactories() const { return factoriesAssigned; }
+    double getUnitCost() const { return unitCost; }
+
+    void setFactories(int f) { factoriesAssigned = std::max(0, f); }
+    void setUnitCost(double c) { unitCost = (c > 0 ? c : defaultCost(type)); }
+
+    std::string toString() const {
+        const char* tn = type==EquipmentType::Gun?"Gun":
+                         type==EquipmentType::Artillery?"Artillery":
+                         type==EquipmentType::AntiAir?"AA":"CAS";
+        std::ostringstream ss;
+        ss << tn << " [factories=" << factoriesAssigned
+           << ", unitCost=" << unitCost << "]";
+        return ss.str();
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, const ProductionLine& pl){
+    return os << pl.toString();
+}
+
+// ============================================================================
+//                                   Country
+// ============================================================================
 class Country {
     std::string name;
     std::string ideology;
     std::vector<Province> provinces;
-    ResourceStockpile stock;
+    ResourceStockpile resources;
+    EquipmentStockpile equipment;
     std::vector<ConstructionTask> queue;
+    std::vector<ProductionLine> milLines;
     int refineries = 0;
 
+    static constexpr int MIL_FACTORY_OUTPUT_PER_DAY = 1000;
     static constexpr int OIL_TO_FUEL_RATIO = 5;
     static constexpr int REFINERY_FUEL_BONUS_PER_DAY = 10;
     static constexpr double CIV_OUTPUT_PER_DAY = 1.0;
-    static constexpr double INFRA_COST = 5.0;
-    static constexpr double CIV_COST = 25.0;
-    static constexpr double MIL_COST = 25.0;
-    static constexpr double REFINERY_COST = 20.0;
 
 public:
-    Country() = default;
-    Country(std::string name, std::string ideology, std::vector<Province> provs, ResourceStockpile stock)
+    Country(std::string name, std::string ideology, std::vector<Province> provs, ResourceStockpile res)
         : name(std::move(name)), ideology(std::move(ideology)),
-          provinces(std::move(provs)), stock(std::move(stock)) {}
+          provinces(std::move(provs)), resources(std::move(res)) {}
 
-    const std::string& getName() const { return name; }
-    const std::string& getIdeology() const { return ideology; }
-    const std::vector<Province>& getProvinces() const { return provinces; }
-    const ResourceStockpile& getStock() const { return stock; }
-    int getRefineries() const { return refineries; }
-    const std::vector<ConstructionTask>& getQueue() const { return queue; }
+    int totalCiv() const { int c=0; for (auto& p:provinces) c+=p.getCiv(); return c; }
+    int totalMil() const { int m=0; for (auto& p:provinces) m+=p.getMil(); return m; }
+    int totalOil() const { int o=0; for (auto& p:provinces) o+=p.getOilReserve(); return o; }
 
-    int totalCiv() const { int c=0; for (const auto& p:provinces) c+=p.getCiv(); return c; }
-    int totalMil() const { int m=0; for (const auto& p:provinces) m+=p.getMil(); return m; }
-    int totalSteel() const { int s=0; for (const auto& p:provinces) s+=p.getSteelReserve(); return s; }
-    int totalTungsten() const { int t=0; for (const auto& p:provinces) t+=p.getTungstenReserve(); return t; }
-    int totalChromium() const { int cr=0; for (const auto& p:provinces) cr+=p.getChromiumReserve(); return cr; }
-    int totalAluminium() const { int a=0; for (const auto& p:provinces) a+=p.getAluminiumReserve(); return a; }
-    int totalOil() const { int o=0; for (const auto& p:provinces) o+=p.getOilReserve(); return o; }
-
-    void startConstruction(BuildType type, int provIndex) {
-        double cost = 0;
-        switch(type){
-            case BuildType::Infra: cost = INFRA_COST; break;
-            case BuildType::Civ: cost = CIV_COST; break;
-            case BuildType::Mil: cost = MIL_COST; break;
-            case BuildType::Refinery: cost = REFINERY_COST; break;
+    // cu cost explicit
+    bool addProductionLine(EquipmentType type, int factories, double cost) {
+        int used = 0; for (auto& l: milLines) used += l.getFactories();
+        if (used + factories > totalMil()) {
+            std::cerr << "[!] Not enough military factories for new line in " << name << ".\n";
+            return false;
         }
-        queue.emplace_back(type, provIndex, cost, cost);
+        milLines.emplace_back(type, factories, cost);
+        return true;
+    }
+
+    // fără cost -> folosește implicit
+    bool addProductionLine(EquipmentType type, int factories) {
+        return addProductionLine(type, factories, -1.0);
+    }
+
+    bool checkMilitaryFactories() const {
+        int used = 0; for (auto& l: milLines) used += l.getFactories();
+        return used <= totalMil();
     }
 
     void simulateDay() {
-        int fuelGain = totalOil() * OIL_TO_FUEL_RATIO + refineries * REFINERY_FUEL_BONUS_PER_DAY;
-        int manpowerGain = 0;
-        for (const auto& p : provinces)
-            manpowerGain += int(std::round(p.getPopulation() * 0.0001));
-        const_cast<ResourceStockpile&>(stock).add(fuelGain, manpowerGain);
-
-        int civ = totalCiv();
-        if (!queue.empty() && civ > 0){
-            double throughput = civ * CIV_OUTPUT_PER_DAY;
-            double perTask = throughput / queue.size();
-
-            for (auto &t : queue)
-                t.setRemainingBP(std::max(0.0, t.getRemainingBP() - perTask));
-
-            std::vector<ConstructionTask> next;
-            for (auto &t : queue) {
-                if (t.getRemainingBP() > 0.0001) { next.push_back(t); continue; }
-                switch(t.getType()){
-                    case BuildType::Infra: provinces[t.getProvinceIndex()].addInfra(+1); break;
-                    case BuildType::Civ: provinces[t.getProvinceIndex()].addCiv(+1); break;
-                    case BuildType::Mil: provinces[t.getProvinceIndex()].addMil(+1); break;
-                    case BuildType::Refinery: refineries++; break;
-                }
-            }
-            queue.swap(next);
+        if (!checkMilitaryFactories()) {
+            std::cerr << "[!] Factory overuse detected in " << name << ".\n";
         }
+
+        int fuelGain = totalOil() * OIL_TO_FUEL_RATIO + refineries * REFINERY_FUEL_BONUS_PER_DAY;
+        resources.add(fuelGain, 0);
+
+        for (auto& l : milLines) {
+            int used = std::min(l.getFactories(), totalMil());
+            double totalPPD = used * MIL_FACTORY_OUTPUT_PER_DAY;
+            long long units = static_cast<long long>(std::floor(totalPPD / l.getUnitCost()));
+
+            switch(l.getType()) {
+                case EquipmentType::Gun: equipment.addGuns(units); break;
+                case EquipmentType::Artillery: equipment.addArtillery(units); break;
+                case EquipmentType::AntiAir: equipment.addAntiAir(units); break;
+                case EquipmentType::CAS: equipment.addCAS(units); break;
+            }
+        }
+    }
+
+    std::string toString() const {
+        std::ostringstream ss;
+        ss << "Country(" << name << ", " << ideology << ")\n";
+        ss << "  Factories: CIV=" << totalCiv() << " | MIL=" << totalMil() << " | REFINERIES=" << refineries << "\n";
+        ss << "  Resources: " << resources << "\n";
+        ss << "  Equipment: " << equipment << "\n";
+        if (!milLines.empty()) {
+            ss << "  Military Lines:\n";
+            for (auto& l : milLines) ss << "    - " << l << "\n";
+        }
+        ss << "  Provinces:\n";
+        for (auto& p : provinces) ss << "    - " << p << "\n";
+        return ss.str();
     }
 };
 
 std::ostream& operator<<(std::ostream& os, const Country& c) {
-    os << "Country(" << c.getName() << ", " << c.getIdeology() << ")\n";
-    os << "  Factories: CIV=" << c.totalCiv()
-       << " | MIL=" << c.totalMil()
-       << " | REFINERIES=" << c.getRefineries() << "\n";
-    os << "  Steel=" << c.totalSteel()
-       << " | Tungsten=" << c.totalTungsten()
-       << " | Chromium=" << c.totalChromium()
-       << " | Aluminium=" << c.totalAluminium()
-       << ", Oil=" << c.totalOil() << "\n";
-    os << "  Daily Fuel Gain = " << (c.totalOil() * 5 + c.getRefineries() * 10) << "\n";
-    os << "  Stock: " << c.getStock() << "\n";
-    os << "  Provinces:\n";
-    for (const auto& p : c.getProvinces())
-        os << "    - " << p << "\n";
-    if (!c.getQueue().empty()) {
-        os << "  Construction Queue:\n";
-        for (const auto& t : c.getQueue())
-            os << "    - " << t << "\n";
-    } else os << "  Construction Queue: (empty)\n";
-    return os;
+    return os << c.toString();
 }
 
-// ------------------------------------ main ----------------------------------
+// ============================================================================
+//                                      MAIN
+// ============================================================================
 int main() {
-    std::ios::sync_with_stdio(false);
-    std::cin.tie(nullptr);
+    // --- Romania ---
+    Province p1("Wallachia",    1800, 3, 3, 6, 2, 3);
+    Province p2("Moldavia",     1500, 2, 2, 5, 5, 1);
+    Province p3("Transylvania", 1600, 2, 1, 7, 8, 2);
+    ResourceStockpile roRes(0, 100);
+    Country Romania("Romania", "Democratic", {p1,p2,p3}, roRes);
+    Romania.addProductionLine(EquipmentType::Gun, 3);
+    Romania.addProductionLine(EquipmentType::Artillery, 2);
 
-    // --- Provincii Romania ---
-    Province p1("Wallachia",    1800, 3, 1, 6, 1,1,1,10,3);
-    Province p2("Moldavia",     1500, 2, 2, 5, 6,1,1,1,1);
-    Province p3("Transylvania", 1600, 2, 1, 7, 8,1,1,1,2);
-
-    // --- Provincii Ungaria ---
-    Province h1("Alfold",       1400, 2, 2, 6, 7,1,1,1,1);
-    Province h2("Transdanubia", 1200, 2, 1, 6, 5,1,1,1,2);
-
-    ResourceStockpile roStock(0, 50);
-    ResourceStockpile huStock(0, 45);
-
-    Country Romania("Romania", "Democratic", {p1, p2, p3}, roStock);
-    Country Hungary("Hungary", "Authoritarian", {h1, h2}, huStock);
-
-    Romania.startConstruction(BuildType::Refinery, 0);
-    Romania.startConstruction(BuildType::Civ, 2);
-    Hungary.startConstruction(BuildType::Mil, 1);
+    // --- Hungary ---
+    Province h1("Alfold",       1400, 2, 2, 6, 4, 2);
+    Province h2("Transdanubia", 1200, 2, 1, 6, 3, 1);
+    ResourceStockpile huRes(0, 80);
+    Country Hungary("Hungary", "Authoritarian", {h1,h2}, huRes);
+    Hungary.addProductionLine(EquipmentType::Gun, 2);
+    Hungary.addProductionLine(EquipmentType::AntiAir, 1);
 
     std::cout << "=== INITIAL STATE ===\n";
     std::cout << Romania << "\n" << Hungary << "\n";
