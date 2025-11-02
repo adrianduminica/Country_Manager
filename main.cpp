@@ -64,7 +64,8 @@ public:
         : name(std::move(name)), population(population),
           civFactories(civ), milFactories(mil),
           infrastructure(infra),
-          steelReserve(steelReserve), tungstenReserve(tungstenReserve),chromiumReserve(chromiumReserve),aluminiumReserve(aluminiumReserve),
+          steelReserve(steelReserve), tungstenReserve(tungstenReserve),
+          chromiumReserve(chromiumReserve), aluminiumReserve(aluminiumReserve),
           oilReserve(oilReserve) {}
 
     const std::string& getName() const { return name; }
@@ -96,69 +97,39 @@ std::ostream& operator<<(std::ostream& os, const Province& p) {
        << ", OIL=" << p.getOilReserve();
     return os;
 }
-//------------------------------- Equipment Prod.------------------------------
 
 // ------------------------------- Construction --------------------------------
 enum class BuildType { Infra, Civ, Mil, Refinery };
 
 class ConstructionTask {
-private:
     BuildType type;
     int provinceIndex;
     double remainingBP;
     double baseCostBP;
 public:
     ConstructionTask(BuildType type, int province_index, double remaining_bp, double base_cost_bp)
-        : type(type),
-          provinceIndex(province_index),
-          remainingBP(remaining_bp),
-          baseCostBP(base_cost_bp) {
-    }
+        : type(type), provinceIndex(province_index),
+          remainingBP(remaining_bp), baseCostBP(base_cost_bp) {}
 
-    [[nodiscard]] BuildType getType() const {
-        return type;
-    }
+    BuildType getType() const { return type; }
+    int getProvinceIndex() const { return provinceIndex; }
+    double getRemainingBP() const { return remainingBP; }
+    double getBaseCostBP() const { return baseCostBP; }
 
-    [[nodiscard]] int getProvince_index() const {
-        return provinceIndex;
-    }
-
-    [[nodiscard]] double getRemaining_bp() const {
-        return remainingBP;
-    }
-
-    [[nodiscard]] double getBase_cost_bp() const {
-        return baseCostBP;
-    }
-
-    void set_type(BuildType type) {
-        this->type = type;
-    }
-
-    void set_province_index(int province_index) {
-        provinceIndex = province_index;
-    }
-
-    void set_remaining_bp(double remaining_bp) {
-        remainingBP = remaining_bp;
-    }
-
-    void set_base_cost_bp(double base_cost_bp) {
-        baseCostBP = base_cost_bp;
-    }
+    void setRemainingBP(double bp) { remainingBP = bp; }
 };
 
 std::ostream& operator<<(std::ostream& os, const ConstructionTask& t){
     const char* tn = t.getType()==BuildType::Infra?"INFRA":
                      t.getType()==BuildType::Civ?"CIV":
                      t.getType()==BuildType::Mil?"MIL":"REFINERY";
-    os << tn << "(prov=" << t.getProvince_index()
+    os << tn << "(prov=" << t.getProvinceIndex()
        << ", left=" << std::fixed << std::setprecision(1)
-       << t.getRemaining_bp() << "/" << t.getBase_cost_bp() << ")";
+       << t.getRemainingBP() << "/" << t.getBaseCostBP() << ")";
     return os;
 }
 
-// ---------------------------------- Tara ----------------------------------
+// ---------------------------------- Country ----------------------------------
 class Country {
     std::string name;
     std::string ideology;
@@ -176,6 +147,7 @@ class Country {
     static constexpr double REFINERY_COST = 20.0;
 
 public:
+    Country() = default;
     Country(std::string name, std::string ideology, std::vector<Province> provs, ResourceStockpile stock)
         : name(std::move(name)), ideology(std::move(ideology)),
           provinces(std::move(provs)), stock(std::move(stock)) {}
@@ -191,38 +163,22 @@ public:
     int totalMil() const { int m=0; for (const auto& p:provinces) m+=p.getMil(); return m; }
     int totalSteel() const { int s=0; for (const auto& p:provinces) s+=p.getSteelReserve(); return s; }
     int totalTungsten() const { int t=0; for (const auto& p:provinces) t+=p.getTungstenReserve(); return t; }
-    int totalChromium() const {int cr=0; for (const auto& p:provinces) cr+=p.getChromiumReserve(); return cr; }
-    int totalAluminium() const {int a=0; for (const auto& p:provinces) a+=p.getAluminiumReserve(); return a; }
+    int totalChromium() const { int cr=0; for (const auto& p:provinces) cr+=p.getChromiumReserve(); return cr; }
+    int totalAluminium() const { int a=0; for (const auto& p:provinces) a+=p.getAluminiumReserve(); return a; }
     int totalOil() const { int o=0; for (const auto& p:provinces) o+=p.getOilReserve(); return o; }
 
     void startConstruction(BuildType type, int provIndex) {
         double cost = 0;
         switch(type){
-            case BuildType::Infra:{
-                cost = INFRA_COST;
-                queue.emplace_back(BuildType::Infra, provIndex, cost, cost);
-                break;
-            }
-            case BuildType::Civ: {
-                cost = CIV_COST;
-                queue.emplace_back(BuildType::Civ, provIndex, cost, cost);
-                break;
-            }
-            case BuildType::Mil: {
-                cost = MIL_COST;
-                queue.emplace_back(BuildType::Civ, provIndex, cost, cost);
-                break;
-            }
-            case BuildType::Refinery: {
-                cost = REFINERY_COST;
-                queue.emplace_back(BuildType::Refinery, provIndex, cost, cost);
-                break;
-            }
-
+            case BuildType::Infra: cost = INFRA_COST; break;
+            case BuildType::Civ: cost = CIV_COST; break;
+            case BuildType::Mil: cost = MIL_COST; break;
+            case BuildType::Refinery: cost = REFINERY_COST; break;
         }
+        queue.emplace_back(type, provIndex, cost, cost);
     }
+
     void simulateDay() {
-        // Fuel zilnic
         int fuelGain = totalOil() * OIL_TO_FUEL_RATIO + refineries * REFINERY_FUEL_BONUS_PER_DAY;
         int manpowerGain = 0;
         for (const auto& p : provinces)
@@ -233,15 +189,17 @@ public:
         if (!queue.empty() && civ > 0){
             double throughput = civ * CIV_OUTPUT_PER_DAY;
             double perTask = throughput / queue.size();
-            for (auto &t : queue) t.set_remaining_bp(std::max(0.0, t.getRemaining_bp() - perTask));
+
+            for (auto &t : queue)
+                t.setRemainingBP(std::max(0.0, t.getRemainingBP() - perTask));
 
             std::vector<ConstructionTask> next;
             for (auto &t : queue) {
-                if (t.getRemaining_bp() > 0.0001) { next.push_back(t); continue; }
+                if (t.getRemainingBP() > 0.0001) { next.push_back(t); continue; }
                 switch(t.getType()){
-                    case BuildType::Infra: provinces[t.getProvince_index()].addInfra(+1); break;
-                    case BuildType::Civ: provinces[t.getProvince_index()].addCiv(+1); break;
-                    case BuildType::Mil: provinces[t.getProvince_index()].addMil(+1); break;
+                    case BuildType::Infra: provinces[t.getProvinceIndex()].addInfra(+1); break;
+                    case BuildType::Civ: provinces[t.getProvinceIndex()].addCiv(+1); break;
+                    case BuildType::Mil: provinces[t.getProvinceIndex()].addMil(+1); break;
                     case BuildType::Refinery: refineries++; break;
                 }
             }
@@ -257,8 +215,8 @@ std::ostream& operator<<(std::ostream& os, const Country& c) {
        << " | REFINERIES=" << c.getRefineries() << "\n";
     os << "  Steel=" << c.totalSteel()
        << " | Tungsten=" << c.totalTungsten()
-        << " | Chromium=" << c.totalChromium()
-        << " | Aluminium=" << c.totalAluminium()
+       << " | Chromium=" << c.totalChromium()
+       << " | Aluminium=" << c.totalAluminium()
        << ", Oil=" << c.totalOil() << "\n";
     os << "  Daily Fuel Gain = " << (c.totalOil() * 5 + c.getRefineries() * 10) << "\n";
     os << "  Stock: " << c.getStock() << "\n";
@@ -279,8 +237,8 @@ int main() {
     std::cin.tie(nullptr);
 
     // --- Provincii Romania ---
-    Province p1("Wallachia",    1800, 3, 1, 6,1,1,1, 10, 3);
-    Province p2("Moldavia",     1500, 2, 2, 5, 6,1,1,1,  1);
+    Province p1("Wallachia",    1800, 3, 1, 6, 1,1,1,10,3);
+    Province p2("Moldavia",     1500, 2, 2, 5, 6,1,1,1,1);
     Province p3("Transylvania", 1600, 2, 1, 7, 8,1,1,1,2);
 
     // --- Provincii Ungaria ---
@@ -300,7 +258,6 @@ int main() {
     std::cout << "=== INITIAL STATE ===\n";
     std::cout << Romania << "\n" << Hungary << "\n";
 
-    // simulam 30 de zile
     for (int day=1; day<=30; ++day) {
         Romania.simulateDay();
         Hungary.simulateDay();
