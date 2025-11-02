@@ -180,7 +180,6 @@ public:
         : name(std::move(name)), ideology(std::move(ideology)),
           provinces(std::move(provs)), stock(std::move(stock)) {}
 
-    // --- Getteri ---
     const std::string& getName() const { return name; }
     const std::string& getIdeology() const { return ideology; }
     const std::vector<Province>& getProvinces() const { return provinces; }
@@ -196,7 +195,6 @@ public:
     int totalAluminium() const {int a=0; for (const auto& p:provinces) a+=p.getAluminiumReserve(); return a; }
     int totalOil() const { int o=0; for (const auto& p:provinces) o+=p.getOilReserve(); return o; }
 
-    // --- Funcții ---
     void startConstruction(BuildType type, int provIndex) {
         double cost = 0;
         switch(type){
@@ -231,7 +229,6 @@ public:
             manpowerGain += int(std::round(p.getPopulation() * 0.0001));
         const_cast<ResourceStockpile&>(stock).add(fuelGain, manpowerGain);
 
-        // Construcții
         int civ = totalCiv();
         if (!queue.empty() && civ > 0){
             double throughput = civ * CIV_OUTPUT_PER_DAY;
@@ -281,7 +278,7 @@ int main() {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    // --- Provincii România ---
+    // --- Provincii Romania ---
     Province p1("Wallachia",    1800, 3, 1, 6,1,1,1, 10, 3);
     Province p2("Moldavia",     1500, 2, 2, 5, 6,1,1,1,  1);
     Province p3("Transylvania", 1600, 2, 1, 7, 8,1,1,1,2);
@@ -303,7 +300,7 @@ int main() {
     std::cout << "=== INITIAL STATE ===\n";
     std::cout << Romania << "\n" << Hungary << "\n";
 
-    // simulăm 30 de zile
+    // simulam 30 de zile
     for (int day=1; day<=30; ++day) {
         Romania.simulateDay();
         Hungary.simulateDay();
