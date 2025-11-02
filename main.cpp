@@ -13,6 +13,7 @@ class ResourceStockpile {
     static int clampNonNeg(int x) { return x < 0 ? 0 : x; }
 
 public:
+    ResourceStockpile() : fuel(0), manpower(0) {}
     ResourceStockpile(int fuel, int manpower)
         : fuel(fuel), manpower(manpower) {}
 
@@ -57,6 +58,7 @@ class Province {
     int oilReserve;
 
 public:
+    Province() = default;
     Province(std::string name, int population, int civ, int mil, int infra,
              int steelReserve,int tungstenReserve, int chromiumReserve, int aluminiumReserve, int oilReserve)
         : name(std::move(name)), population(population),
@@ -94,24 +96,65 @@ std::ostream& operator<<(std::ostream& os, const Province& p) {
        << ", OIL=" << p.getOilReserve();
     return os;
 }
+//------------------------------- Equipment Prod.------------------------------
 
 // ------------------------------- Construction --------------------------------
 enum class BuildType { Infra, Civ, Mil, Refinery };
 
-struct ConstructionTask {
+class ConstructionTask {
+private:
     BuildType type;
     int provinceIndex;
     double remainingBP;
     double baseCostBP;
+public:
+    ConstructionTask(BuildType type, int province_index, double remaining_bp, double base_cost_bp)
+        : type(type),
+          provinceIndex(province_index),
+          remainingBP(remaining_bp),
+          baseCostBP(base_cost_bp) {
+    }
+
+    [[nodiscard]] BuildType getType() const {
+        return type;
+    }
+
+    [[nodiscard]] int getProvince_index() const {
+        return provinceIndex;
+    }
+
+    [[nodiscard]] double getRemaining_bp() const {
+        return remainingBP;
+    }
+
+    [[nodiscard]] double getBase_cost_bp() const {
+        return baseCostBP;
+    }
+
+    void set_type(BuildType type) {
+        this->type = type;
+    }
+
+    void set_province_index(int province_index) {
+        provinceIndex = province_index;
+    }
+
+    void set_remaining_bp(double remaining_bp) {
+        remainingBP = remaining_bp;
+    }
+
+    void set_base_cost_bp(double base_cost_bp) {
+        baseCostBP = base_cost_bp;
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const ConstructionTask& t){
-    const char* tn = t.type==BuildType::Infra?"INFRA":
-                     t.type==BuildType::Civ?"CIV":
-                     t.type==BuildType::Mil?"MIL":"REFINERY";
-    os << tn << "(prov=" << t.provinceIndex
+    const char* tn = t.getType()==BuildType::Infra?"INFRA":
+                     t.getType()==BuildType::Civ?"CIV":
+                     t.getType()==BuildType::Mil?"MIL":"REFINERY";
+    os << tn << "(prov=" << t.getProvince_index()
        << ", left=" << std::fixed << std::setprecision(1)
-       << t.remainingBP << "/" << t.baseCostBP << ")";
+       << t.getRemaining_bp() << "/" << t.getBase_cost_bp() << ")";
     return os;
 }
 
@@ -157,14 +200,29 @@ public:
     void startConstruction(BuildType type, int provIndex) {
         double cost = 0;
         switch(type){
-            case BuildType::Infra: cost = INFRA_COST; break;
-            case BuildType::Civ: cost = CIV_COST; break;
-            case BuildType::Mil: cost = MIL_COST; break;
-            case BuildType::Refinery: cost = REFINERY_COST; break;
-        }
-        queue.push_back({type, provIndex, cost, cost});
-    }
+            case BuildType::Infra:{
+                cost = INFRA_COST;
+                queue.emplace_back(BuildType::Infra, provIndex, cost, cost);
+                break;
+            }
+            case BuildType::Civ: {
+                cost = CIV_COST;
+                queue.emplace_back(BuildType::Civ, provIndex, cost, cost);
+                break;
+            }
+            case BuildType::Mil: {
+                cost = MIL_COST;
+                queue.emplace_back(BuildType::Civ, provIndex, cost, cost);
+                break;
+            }
+            case BuildType::Refinery: {
+                cost = REFINERY_COST;
+                queue.emplace_back(BuildType::Refinery, provIndex, cost, cost);
+                break;
+            }
 
+        }
+    }
     void simulateDay() {
         // Fuel zilnic
         int fuelGain = totalOil() * OIL_TO_FUEL_RATIO + refineries * REFINERY_FUEL_BONUS_PER_DAY;
@@ -178,15 +236,15 @@ public:
         if (!queue.empty() && civ > 0){
             double throughput = civ * CIV_OUTPUT_PER_DAY;
             double perTask = throughput / queue.size();
-            for (auto &t : queue) t.remainingBP = std::max(0.0, t.remainingBP - perTask);
+            for (auto &t : queue) t.set_remaining_bp(std::max(0.0, t.getRemaining_bp() - perTask));
 
             std::vector<ConstructionTask> next;
             for (auto &t : queue) {
-                if (t.remainingBP > 0.0001) { next.push_back(t); continue; }
-                switch(t.type){
-                    case BuildType::Infra: provinces[t.provinceIndex].addInfra(+1); break;
-                    case BuildType::Civ: provinces[t.provinceIndex].addCiv(+1); break;
-                    case BuildType::Mil: provinces[t.provinceIndex].addMil(+1); break;
+                if (t.getRemaining_bp() > 0.0001) { next.push_back(t); continue; }
+                switch(t.getType()){
+                    case BuildType::Infra: provinces[t.getProvince_index()].addInfra(+1); break;
+                    case BuildType::Civ: provinces[t.getProvince_index()].addCiv(+1); break;
+                    case BuildType::Mil: provinces[t.getProvince_index()].addMil(+1); break;
                     case BuildType::Refinery: refineries++; break;
                 }
             }
